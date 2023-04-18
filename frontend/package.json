@@ -2,6 +2,7 @@
   "name": "@shabados/viewer--frontend",
   "version": "0.1.0",
   "dependencies": {
+    "fuse.js": "^6.6.2",
     "gurmukhi-utils": "^3.2.2",
     "jotai": "^1.8.4",
     "lodash": "^4.17.21",

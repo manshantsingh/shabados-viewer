@@ -1,5 +1,7 @@
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
+import Fuse from 'fuse.js'
+import { stripEndings, stripVishraams, toHindi, toUnicode } from 'gurmukhi-utils'
 import { useAtomValue } from 'jotai'
 import { mapValues } from 'lodash'
 import { SkipBack, SkipForward } from 'lucide-react'
@@ -112,6 +114,7 @@ const KEY_MAP = {
   openLine: [ 'enter' ],
   previousPage: [ 'shift+left', 'pageup' ],
   nextPage: [ 'shift+right', 'pagedown' ],
+  toggleRecord: [ 'space' ],
 }
 
 const BLOCKED_KEYS = [ 'Tab', 'PageUp', 'PageDown' ]
@@ -121,6 +124,23 @@ const blockKeys = ( event: KeyboardEvent ) => {
 
 type SourceViewProps = {
   sources: SourcesResponse,
+}
+
+const fuseOptions = {
+  // isCaseSensitive: false,
+  // includeScore: false,
+  shouldSort: true,
+  // includeMatches: false,
+  // findAllMatches: false,
+  // minMatchCharLength: 1,
+  // location: 0,
+  // threshold: 0.6,
+  // distance: 100,
+  // useExtendedSearch: false,
+  // ignoreLocation: false,
+  // ignoreFieldNorm: false,
+  // fieldNormWeight: 1,
+  keys: [ 'hindi' ],
 }
 
 const SourceView = ( { sources }: SourceViewProps ) => {
@@ -149,19 +169,33 @@ const SourceView = ( { sources }: SourceViewProps ) => {
   }, [ loading ] )
 
   useEffect( () => {
+    console.log( 'MSK_useEffect::blockKeys' )
     document.addEventListener( 'keydown', blockKeys )
 
     return () => document.removeEventListener( 'keydown', blockKeys )
   }, [] )
 
   useEffect( () => {
+    console.log( 'MSK_useEffect::source=', source, ', page=', page, ', line=', line )
     savePosition( source, page, line )
   }, [ source, page, line ] )
 
   useEffect( () => {
+    console.log( 'MSK_useEffect::line=', line, ', lines=', lines )
     if ( !lines ) return
-
     lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
+
+    // MSK code start
+    const dict = []
+    for ( let i = 0; i < lines?.length; i++ ) {
+      dict.push( {
+        id: i,
+        hindi: toHindi( stripEndings( stripVishraams( toUnicode( lines[ i ].gurmukhi ) ) ) ),
+      } )
+    }
+
+    console.log( 'new dict: ', dict )
+    fuse = new Fuse( dict, fuseOptions )
   }, [ line, lines ] )
 
   const navigate = useNavigate()
@@ -169,10 +203,15 @@ const SourceView = ( { sources }: SourceViewProps ) => {
 
   const { length, pageNameGurmukhi } = sources.find( ( { id } ) => id === source ) ?? {}
 
-  const activateLine = ( line: number ) => {
+  const activatePageLine = ( page: number, line: number ) => {
     navigate( `/sources/${source}/page/${page}/line/${line}`, { replace: true } )
 
+    console.log( 'lineRefs: ', lineRefs, ', line: ', line )
     lineRefs.current[ line ].scrollIntoView( { block: 'center' } )
+  }
+
+  const activateLine = ( line: number ) => {
+    activatePageLine( rawPage, line )
   }
 
   const focusLine = ( line: number ) => {
@@ -212,6 +251,14 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     else previousPage()
   }
 
+  const toggleRecord = () => {
+    if ( recognizing ) {
+      recognition.stop()
+      return
+    }
+    recognition.start()
+  }
+
   const firstLine = () => focusLine( 0 )
   const lastLine = () => focusLine( lines!.length - 1 )
 
@@ -226,12 +273,69 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     lastLine,
     previousPage,
     nextPage,
+    toggleRecord,
     openLine: onLineEnter,
   }
 
   const classes = useStyles()
 
   const zoomValue = useAtomValue( zoom )
+
+  // MSK code start
+  const dict = []
+  for ( let i = 0; i < lines?.length; i++ ) {
+    dict.push( {
+      id: i,
+      hindi: toHindi( stripEndings( stripVishraams( toUnicode( lines[ i ].gurmukhi ) ) ) ),
+    } )
+  }
+
+  console.log( 'dict: ', dict )
+
+  let fuse = new Fuse( dict, fuseOptions )
+
+  // Setup SpeechRecognition
+  let recognizing = false
+
+  const recognition = new window.webkitSpeechRecognition()
+  recognition.continuous = true
+  recognition.interimResults = true
+  recognition.lang = 'hi-IN'
+
+  recognition.onstart = function () {
+    recognizing = true
+    console.log( 'starting recording' )
+  }
+
+  recognition.onerror = function ( event ) {
+    // handle errors
+  }
+
+  recognition.onend = function () {
+    recognizing = false
+    console.log( 'stopping recording' )
+    // recognition.start()
+  }
+
+  recognition.onresult = function ( event ) {
+    let interim_transcript = ''
+    for ( let i = event.resultIndex; i < event.results.length; ++i ) {
+      if ( event.results[ i ].isFinal ) {
+        console.log( 'final: ', event.results[ i ][ 0 ].transcript )
+      } else {
+        console.log( 'interim: ', event.results[ i ][ 0 ].transcript )
+        interim_transcript += event.results[ i ][ 0 ].transcript
+      }
+    }
+
+    const fuseSearchResult = fuse.search( interim_transcript )
+    console.log( 'MSK: ', "interim_transcript='", interim_transcript, "', and result=", fuseSearchResult )
+
+    if ( fuseSearchResult.length > 0 ) {
+      activatePageLine( page, fuseSearchResult[ 0 ].item.id )
+    }
+  }
+  // MSK code start
 
   return (
     <Layout>
