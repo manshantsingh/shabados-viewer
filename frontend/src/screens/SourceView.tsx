@@ -324,12 +324,23 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     else previousPage()
   }
 
+  let firstTime = true
+  function resetVoiceRecog() {
+    recognition.stop()
+  }
+
   const toggleRecord = () => {
     if ( recognizing ) {
       recognition.stop()
       return
     }
+
     recognition.start()
+
+    if ( firstTime ) {
+      firstTime = false
+      // setInterval( resetVoiceRecog, 30 * 1000 )
+    }
   }
 
   const firstLine = () => focusLine( 0 )
@@ -372,6 +383,10 @@ const SourceView = ( { sources }: SourceViewProps ) => {
   }
 
   function fuzzyMatchMainResult( needle: string ) {
+    if ( needle.length < 5 || isEmptyOrWhiteSpace( needle ) ) {
+      return []
+    }
+
     const result = fuzzyMatch( needle, hindiLines )
     const endPos = result[ 2 ]
 
@@ -382,7 +397,7 @@ const SourceView = ( { sources }: SourceViewProps ) => {
         return [ dict[ i ], subStr, result, fuzzyPositions ]
       }
     }
-    return [ ]
+    return []
   }
 
   console.log( 'dict: ', dict )
@@ -406,31 +421,61 @@ const SourceView = ( { sources }: SourceViewProps ) => {
   }
 
   recognition.onend = function () {
-    recognizing = false
-    console.log( 'stopping recording' )
-    // recognition.start()
+    if ( recognizing ) {
+      recognizing = false
+      console.log( 'restarting recording (result)' )
+      recognition.start()
+    }
   }
+
+  function isEmptyOrWhiteSpace( str : string ) {
+    return str === null || str.match( /^\s*$/ ) !== null
+  }
+
+  let prevTranscription = ''
 
   recognition.onresult = function ( event ) {
     let interim_transcript = ''
     for ( let i = event.resultIndex; i < event.results.length; ++i ) {
+      console.log( 'interim: ', event.results[ i ][ 0 ].transcript )
+      interim_transcript += event.results[ i ][ 0 ].transcript
+
       if ( event.results[ i ].isFinal ) {
-        console.log( 'final: ', event.results[ i ][ 0 ].transcript )
-      } else {
-        console.log( 'interim: ', event.results[ i ][ 0 ].transcript )
-        interim_transcript += event.results[ i ][ 0 ].transcript
+        prevTranscription = interim_transcript
+        console.log( 'final result: ', event.results[ i ][ 0 ].transcript )
+        toggleRecord()
+        return
       }
     }
 
-    const fuseSearchResult = fuse.search( interim_transcript )
-    const fuzzyResult = fuzzyMatchMainResult( interim_transcript )
-    console.log( 'MSK: ', "interim_transcript='", interim_transcript, "', and fuse result=", fuseSearchResult, ', fuzzy result=', fuzzyResult )
+    const LOOKBACK_FUZZY = 75
+    const RESTART_VALUE = 150
+
+    const wholeSearch = prevTranscription + interim_transcript
+
+    const string_to_search: string = wholeSearch.length <= LOOKBACK_FUZZY
+      ? wholeSearch
+      : wholeSearch.substring( wholeSearch.length - LOOKBACK_FUZZY )
+
+    // const fuseSearchResult = fuse.search( interim_transcript )
+    const fuzzyResult = fuzzyMatchMainResult( string_to_search )
+    console.log( 'MSK: ', "interim_transcript='", isEmptyOrWhiteSpace( interim_transcript ) ? 'isEmptyOrWhiteSpace' : interim_transcript, "', length=", interim_transcript.length, ", string_to_search='", string_to_search, "', fuzzy result=", fuzzyResult )
+
+    // console.log( 'MSK: ', "interim_transcript='", isEmptyOrWhiteSpace( interim_transcript ) ? 'isEmptyOrWhiteSpace' : interim_transcript, "', length=", interim_transcript.length, ", string_to_search='", string_to_search, "', and fuse result=", fuseSearchResult, ', fuzzy result=', fuzzyResult )
 
     // if ( fuseSearchResult.length > 0 ) {
     //   activatePageLine( page, fuseSearchResult[ 0 ].item.id )
     // }
     if ( fuzzyResult.length > 0 ) {
       activatePageLine( page, fuzzyResult[ 0 ].id )
+    }
+
+    // // if ( isEmptyOrWhiteSpace( interim_transcript )
+    // // || interim_transcript.length > RESTART_VALUE ) {
+    if ( interim_transcript.length > RESTART_VALUE ) {
+      prevTranscription = interim_transcript
+      console.log( 'MSK: ', '\n\nrestarting result\n\n' )
+      toggleRecord()
     }
   }
   // MSK code start
