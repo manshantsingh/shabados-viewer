@@ -126,9 +126,73 @@ type SourceViewProps = {
   sources: SourcesResponse,
 }
 
+function fuzzyMatch( needle: string, haystack: string ) : [number, number, number] {
+  const tuple = fuzzyMatchAllResults( needle, haystack )
+  const prev = tuple[ 0 ]
+  const prevBacktrace = tuple[ 1 ]
+
+  // get the farthest match with same value
+  // Note: don't use prev[0] as that value is just to assist the Dynamic Programming
+  let pos = prev.length - 1
+  for ( let i = prev.length - 2; i > 0; i-- ) {
+    if ( prev[ pos ] > prev[ i ] ) {
+      pos = i
+    }
+  }
+
+  // (cost, startPosition, endPosition) where the match is substring [startPosition, endPosition)
+  return [ prev[ pos ], prevBacktrace[ pos ], pos ]
+}
+
+function fuzzyMatchAllResults( needle: string, haystack: string ) : [number[], number[]] {
+  const arrayLength = haystack.length + 1
+  let prev: number[] = Array<number>( arrayLength ).fill( 0 )
+  let prevBacktrace: number[] = Array<number>( arrayLength ).fill( 0 ).map( ( _, i ) => i )
+
+  let current: number[] = Array<number>( arrayLength ).fill( 0 )
+  let currentBacktrace: number[] = Array<number>( arrayLength ).fill( 0 )
+
+  for ( let i = 0; i < needle.length; i++ ) {
+    const cost = 1 // TODO: update this to use different cost based on what the character is.
+
+    current[ 0 ] = prev[ 0 ] + 1
+    currentBacktrace[ 0 ] = 0
+
+    for ( let j = 0; j < arrayLength - 1; j++ ) {
+      // cost of deleting. This is default option (highest priority) in order to
+      // encapsulate the longest match found with backtrace
+      current[ j + 1 ] = current[ j ] + cost
+      currentBacktrace[ j + 1 ] = currentBacktrace[ j ]
+
+      // cost of inserting
+      const insertionCost = prev[ j + 1 ] + cost
+      if ( current[ j + 1 ] > insertionCost ) {
+        current[ j + 1 ] = insertionCost
+        currentBacktrace[ j + 1 ] = prevBacktrace[ j + 1 ]
+      }
+
+      // cost of substitute if needed. This is least priority in order to decrease the collection
+      // of garbage characters on the edges in the match found with backtrace
+      const substitutionCost = prev[ j ] + ( needle[ i ] !== haystack[ j ] ? cost : 0 )
+      if ( current[ j + 1 ] > substitutionCost ) {
+        current[ j + 1 ] = substitutionCost
+        currentBacktrace[ j + 1 ] = prevBacktrace[ j ]
+      }
+    }
+    const temp = prev
+    prev = current
+    current = temp
+
+    const tempBacktrace = prevBacktrace
+    prevBacktrace = currentBacktrace
+    currentBacktrace = tempBacktrace
+  }
+  return [ prev, prevBacktrace ]
+}
+
 const fuseOptions = {
   // isCaseSensitive: false,
-  // includeScore: false,
+  includeScore: true,
   shouldSort: true,
   // includeMatches: false,
   // findAllMatches: false,
@@ -137,7 +201,7 @@ const fuseOptions = {
   // threshold: 0.6,
   // distance: 100,
   // useExtendedSearch: false,
-  // ignoreLocation: false,
+  ignoreLocation: true,
   // ignoreFieldNorm: false,
   // fieldNormWeight: 1,
   keys: [ 'hindi' ],
@@ -181,21 +245,30 @@ const SourceView = ( { sources }: SourceViewProps ) => {
   }, [ source, page, line ] )
 
   useEffect( () => {
-    console.log( 'MSK_useEffect::line=', line, ', lines=', lines )
-    if ( !lines ) return
-    lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
+    // console.log( 'MSK_useEffect::line=', line, ', lines=', lines )
+    // if ( !lines ) return
+    // lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
 
-    // MSK code start
-    const dict = []
-    for ( let i = 0; i < lines?.length; i++ ) {
-      dict.push( {
-        id: i,
-        hindi: toHindi( stripEndings( stripVishraams( toUnicode( lines[ i ].gurmukhi ) ) ) ),
-      } )
-    }
+    // const dict = []
+    // const fuzzyPositions = []
+    // let hindiLines = ''
 
-    console.log( 'new dict: ', dict )
-    fuse = new Fuse( dict, fuseOptions )
+    // for ( let i = 0; i < lines?.length; i++ ) {
+    //   const hindiLine = toHindi(
+    //     stripEndings( stripVishraams( toUnicode( lines[ i ].gurmukhi ) ) )
+    //   )
+
+    //   dict.push( {
+    //     id: i,
+    //     hindi: hindiLine,
+    //   } )
+
+    //   fuzzyPositions.push( [ hindiLine[ i ].length, i ] )
+    //   hindiLines += hindiLine
+    // }
+
+    // console.log( 'dict: ', dict )
+    // fuse = new Fuse( dict, fuseOptions )
   }, [ line, lines ] )
 
   const navigate = useNavigate()
@@ -283,16 +356,37 @@ const SourceView = ( { sources }: SourceViewProps ) => {
 
   // MSK code start
   const dict = []
-  for ( let i = 0; i < lines?.length; i++ ) {
+  const fuzzyPositions: number[] = []
+  let hindiLines = ''
+
+  for ( let i = 0; i < lines?.length; i += 1 ) {
+    const hindiLine = toHindi( stripEndings( stripVishraams( toUnicode( lines[ i ].gurmukhi ) ) ) )
+
     dict.push( {
       id: i,
-      hindi: toHindi( stripEndings( stripVishraams( toUnicode( lines[ i ].gurmukhi ) ) ) ),
+      hindi: hindiLine,
     } )
+
+    hindiLines += `${hindiLine} `
+    fuzzyPositions.push( hindiLines.length )
+  }
+
+  function fuzzyMatchMainResult( needle: string ) {
+    const result = fuzzyMatch( needle, hindiLines )
+    const endPos = result[ 2 ]
+
+    const subStr = hindiLines.substring( result[ 1 ], endPos )
+
+    for ( let i = 0; i < fuzzyPositions.length; i += 1 ) {
+      if ( fuzzyPositions[ i ] >= endPos ) {
+        return [ dict[ i ], subStr, result, fuzzyPositions ]
+      }
+    }
+    return [ ]
   }
 
   console.log( 'dict: ', dict )
-
-  let fuse = new Fuse( dict, fuseOptions )
+  const fuse = new Fuse( dict, fuseOptions )
 
   // Setup SpeechRecognition
   let recognizing = false
@@ -329,10 +423,14 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     }
 
     const fuseSearchResult = fuse.search( interim_transcript )
-    console.log( 'MSK: ', "interim_transcript='", interim_transcript, "', and result=", fuseSearchResult )
+    const fuzzyResult = fuzzyMatchMainResult( interim_transcript )
+    console.log( 'MSK: ', "interim_transcript='", interim_transcript, "', and fuse result=", fuseSearchResult, ', fuzzy result=', fuzzyResult )
 
-    if ( fuseSearchResult.length > 0 ) {
-      activatePageLine( page, fuseSearchResult[ 0 ].item.id )
+    // if ( fuseSearchResult.length > 0 ) {
+    //   activatePageLine( page, fuseSearchResult[ 0 ].item.id )
+    // }
+    if ( fuzzyResult.length > 0 ) {
+      activatePageLine( page, fuzzyResult[ 0 ].id )
     }
   }
   // MSK code start
