@@ -1,4 +1,6 @@
-class WebSpeechApiTranscriber extends Transcriber {
+import { ResultCallback, Transcriber } from './Transcriber'
+
+export class WebSpeechApiTranscriber extends Transcriber {
   private recognition
 
   constructor( callback: ResultCallback ) {

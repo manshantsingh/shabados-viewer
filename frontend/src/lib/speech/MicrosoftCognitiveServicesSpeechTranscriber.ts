@@ -1,7 +1,8 @@
-import { result } from 'lodash'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 
-class MicrosoftCognitiveServicesSpeechTranscriber extends Transcriber {
+import { ResultCallback, Transcriber } from './Transcriber'
+
+export class MicrosoftCognitiveServicesSpeechTranscriber extends Transcriber {
   private speechRecognizer: sdk.SpeechRecognizer
 
   constructor( callback: ResultCallback, speechKey: string, speechRegion: string ) {

@@ -1,13 +1,13 @@
 import { stripEndings, stripVishraams, toHindi, toUnicode } from 'gurmukhi-utils'
 
-// type ResultCallback = ( result: string ) => void
+export type ResultCallback = ( result: string ) => void
 
-abstract class Transcriber {
-  // protected m_callback: ResultCallback
+export abstract class Transcriber {
+  protected m_callback: ResultCallback
 
-  // constructor( callback: ResultCallback ) {
-  //   this.m_callback = callback
-  // }
+  constructor( callback: ResultCallback ) {
+    this.m_callback = callback
+  }
 
   abstract StartRecording() : void
   abstract StopRecording() : void
@@ -15,7 +15,5 @@ abstract class Transcriber {
   TransformInput( input: string ): string {
     return toHindi( stripEndings( stripVishraams( toUnicode( input ) ) ) )
   }
-  TransformOutput( input: string ): string {
-    return input
-  }
+  TransformOutput( input: string ): string { return input }
 }

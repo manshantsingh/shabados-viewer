@@ -19,7 +19,7 @@ import Loader from '../components/Loader'
 import Section from '../components/Section'
 import theme from '../helpers/theme'
 import { PAGE_API } from '../lib/consts'
-import { fuzzyMatch } from '../lib/panktiSelector'
+import { PanktiSelector, PositionCallback } from '../lib/speech/PanktiSelector'
 import { savePosition } from '../lib/utils'
 import { SourcePageResponse, SourcesResponse } from '../types/api'
 import { zoom } from './Interface'
@@ -113,6 +113,7 @@ const KEY_MAP = {
   openLine: [ 'enter' ],
   previousPage: [ 'shift+left', 'pageup' ],
   nextPage: [ 'shift+right', 'pagedown' ],
+  togglePanktiSelector: [ 'space' ],
 }
 
 const BLOCKED_KEYS = [ 'Tab', 'PageUp', 'PageDown' ]
@@ -140,6 +141,8 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     data: lines,
     error: err,
   } = useSWR<SourcePageResponse, Error>( `${PAGE_API}/${source}/page/${rawPage}` )
+
+  const panktiSelector : PanktiSelector = null
 
   const loading = !lines
 
@@ -218,6 +221,10 @@ const SourceView = ( { sources }: SourceViewProps ) => {
 
   const onLineEnter = () => navigate( `${location.pathname}/view` )
 
+  const togglePanktiSelector = () => {
+    console.log( 'space bar pressed. Pankti Selector is not yet implemented' )
+  }
+
   const handlers = {
     activatePreviousLine,
     activateNextLine,
@@ -227,6 +234,7 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     lastLine,
     previousPage,
     nextPage,
+    togglePanktiSelector,
     openLine: onLineEnter,
   }
 
