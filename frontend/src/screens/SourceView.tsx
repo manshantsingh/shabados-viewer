@@ -3,7 +3,7 @@
 import { useAtomValue } from 'jotai'
 import { mapValues } from 'lodash'
 import { SkipBack, SkipForward } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { GlobalHotKeys } from 'react-hotkeys'
 import { createUseStyles } from 'react-jss'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -142,31 +142,9 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     error: err,
   } = useSWR<SourcePageResponse, Error>( `${PAGE_API}/${source}/page/${rawPage}` )
 
-  const panktiSelector : PanktiSelector = null
+  const [ panktiSelector, setPanktiSelector ] = useState<PanktiSelector>( null )
 
   const loading = !lines
-
-  useEffect( () => {
-    if ( !loading ) return
-
-    lineRefs.current = {}
-  }, [ loading ] )
-
-  useEffect( () => {
-    document.addEventListener( 'keydown', blockKeys )
-
-    return () => document.removeEventListener( 'keydown', blockKeys )
-  }, [] )
-
-  useEffect( () => {
-    savePosition( source, page, line )
-  }, [ source, page, line ] )
-
-  useEffect( () => {
-    if ( !lines ) return
-
-    lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
-  }, [ line, lines ] )
 
   const navigate = useNavigate()
   const location = useLocation()
@@ -222,8 +200,34 @@ const SourceView = ( { sources }: SourceViewProps ) => {
   const onLineEnter = () => navigate( `${location.pathname}/view` )
 
   const togglePanktiSelector = () => {
-    console.log( 'space bar pressed. Pankti Selector is not yet implemented' )
+    panktiSelector?.ToggleRunningState()
   }
+
+  useEffect( () => {
+    if ( !loading ) return
+
+    lineRefs.current = {}
+  }, [ loading ] )
+
+  useEffect( () => {
+    document.addEventListener( 'keydown', blockKeys )
+
+    setPanktiSelector( new PanktiSelector( ( result: number ) => {
+      activateLine( result )
+    } ) )
+
+    return () => document.removeEventListener( 'keydown', blockKeys )
+  }, [] )
+
+  useEffect( () => {
+    savePosition( source, page, line )
+  }, [ source, page, line ] )
+
+  useEffect( () => {
+    if ( !lines ) return
+
+    lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
+  }, [ line, lines ] )
 
   const handlers = {
     activatePreviousLine,

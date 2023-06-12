@@ -66,15 +66,11 @@ export class PanktiSelector {
     this.linePositions = newLinePositions
   }
 
-  // Start(): void {
-  //   this.transcriber.StartRecording()
-  // }
-
-  // Stop(): void {
-  //   this.transcriber.StopRecording()
-  // }
-
   ToggleRunningState(): void {
+    if ( !( this.transcriber ) ) {
+      return
+    }
+
     this.isRunning = !( this.isRunning )
 
     if ( this.isRunning ) {
