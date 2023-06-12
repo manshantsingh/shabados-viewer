@@ -142,16 +142,45 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     error: err,
   } = useSWR<SourcePageResponse, Error>( `${PAGE_API}/${source}/page/${rawPage}` )
 
-  const [ panktiSelector, setPanktiSelector ] = useState<PanktiSelector>( null )
+  console.log( 'lines: ', lines )
+
+  const panktiSelectorRef = useRef<PanktiSelector | null>( null )
 
   const loading = !lines
+
+  useEffect( () => {
+    if ( !loading ) return
+
+    lineRefs.current = {}
+  }, [ loading ] )
+
+  useEffect( () => {
+    document.addEventListener( 'keydown', blockKeys )
+
+    panktiSelectorRef.current = new PanktiSelector()
+
+    return () => {
+      document.removeEventListener( 'keydown', blockKeys )
+      // panktiSelectorRef.current = null
+    }
+  }, [] )
+
+  useEffect( () => {
+    savePosition( source, page, line )
+  }, [ source, page, line ] )
+
+  useEffect( () => {
+    if ( !lines ) return
+
+    lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
+  }, [ line, lines ] )
 
   const navigate = useNavigate()
   const location = useLocation()
 
   const { length, pageNameGurmukhi } = sources.find( ( { id } ) => id === source ) ?? {}
 
-  const activateLine = ( line: number ) => {
+  const activateLine: PositionCallback = ( line: number ) => {
     navigate( `/sources/${source}/page/${page}/line/${line}`, { replace: true } )
 
     lineRefs.current[ line ].scrollIntoView( { block: 'center' } )
@@ -200,34 +229,17 @@ const SourceView = ( { sources }: SourceViewProps ) => {
   const onLineEnter = () => navigate( `${location.pathname}/view` )
 
   const togglePanktiSelector = () => {
-    panktiSelector?.ToggleRunningState()
+    panktiSelectorRef.current?.ToggleRunningState()
   }
-
-  useEffect( () => {
-    if ( !loading ) return
-
-    lineRefs.current = {}
-  }, [ loading ] )
-
-  useEffect( () => {
-    document.addEventListener( 'keydown', blockKeys )
-
-    setPanktiSelector( new PanktiSelector( ( result: number ) => {
-      activateLine( result )
-    } ) )
-
-    return () => document.removeEventListener( 'keydown', blockKeys )
-  }, [] )
-
-  useEffect( () => {
-    savePosition( source, page, line )
-  }, [ source, page, line ] )
 
   useEffect( () => {
     if ( !lines ) return
 
-    lineRefs.current[ line ]?.scrollIntoView( { block: 'center' } )
-  }, [ line, lines ] )
+    console.log( 'original lines object:', lines )
+
+    panktiSelectorRef.current?.SetCallback( activateLine )
+    panktiSelectorRef.current?.SetLines( lines.map( ( line ) => line.gurmukhi ) )
+  }, [ panktiSelectorRef.current, activateLine, lines ] )
 
   const handlers = {
     activatePreviousLine,

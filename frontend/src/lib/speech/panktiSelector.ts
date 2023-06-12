@@ -10,8 +10,12 @@ export class PanktiSelector {
   private static readonly msftApiregionCookieKey = 'SPEECH_REGION'
   private static readonly openaiApiSecretCookieKey = 'OPENAI_SECRET'
 
+  private static readonly LOOKBACK_LENGTH = 75
+
   private combinedLines = ''
   private linePositions: number[] = []
+
+  private prevTranscription = ''
 
   private lineCallback: PositionCallback
 
@@ -19,9 +23,18 @@ export class PanktiSelector {
 
   private isRunning: boolean
 
-  private GetPositionFromTranscriptionResult: ResultCallback = ( needle: string ): void => {
+  private GetPositionFromTranscriptionResult: ResultCallback = ( newText: string ): void => {
+    let needle = this.prevTranscription + newText
+    needle = needle.length <= PanktiSelector.LOOKBACK_LENGTH
+      ? needle
+      : needle.substring( needle.length - PanktiSelector.LOOKBACK_LENGTH )
+
+    this.prevTranscription = needle
+
     const result = PanktiSelector.fuzzyMatch( needle, this.combinedLines )
     const endPos = result[ 2 ]
+
+    console.log( 'GetPositionFromTranscriptionResult: result=', result, ' needle=', needle, ' match=', this.combinedLines.substring( result[ 1 ], endPos ) )
 
     for ( let i = 0; i < this.linePositions.length; i += 1 ) {
       if ( this.linePositions[ i ] >= endPos ) {
@@ -31,8 +44,7 @@ export class PanktiSelector {
     }
   }
 
-  constructor( callback: PositionCallback ) {
-    this.lineCallback = callback
+  constructor() {
     this.isRunning = false
 
     const transcriberName = PanktiSelector.getCookie( PanktiSelector.transcriberNameCookieKey )
@@ -41,29 +53,50 @@ export class PanktiSelector {
       case 'WebSpeechApi':
         this.transcriber = new WebSpeechApiTranscriber( this.GetPositionFromTranscriptionResult )
         break
-      case 'MSFT':
-        this.transcriber = new MicrosoftCognitiveServicesSpeechTranscriber(
-          this.GetPositionFromTranscriptionResult,
-          PanktiSelector.getCookie( PanktiSelector.msftApiKeyCookieKey ),
-          PanktiSelector.getCookie( PanktiSelector.msftApiregionCookieKey )
-        )
-        break
+      // case 'MSFT':
+      //   this.transcriber = new MicrosoftCognitiveServicesSpeechTranscriber(
+      //     this.GetPositionFromTranscriptionResult,
+      //     PanktiSelector.getCookie( PanktiSelector.msftApiKeyCookieKey ),
+      //     PanktiSelector.getCookie( PanktiSelector.msftApiregionCookieKey )
+      //   )
+      //   break
       default:
         console.log( `Not a valid Transcriber type name '${transcriberName}'. Skipping...` )
     }
   }
 
+  SetCallback( callback: PositionCallback ): void {
+    this.lineCallback = callback
+  }
+
   SetLines( lines: string[] ): void {
+    if ( !( this.transcriber ) ) {
+      console.log( 'not setting lines as transcriber is', this.transcriber )
+      return
+    }
+
+    // if ( !lines ) {
+    //   console.log( 'not setting lines cuz lines are', lines )
+    //   return
+    // }
+
     let newCombinedLines = ''
     const newLinePositions: number[] = []
 
+    // console.log( 'all lines:', lines )
+
     lines.forEach( ( line ) => {
+      // console.log( 'current line:', line )
+      // console.log( 'current transcriber:', this.transcriber )
       newCombinedLines += `${this.transcriber.TransformInput( line )} `
       newLinePositions.push( newCombinedLines.length )
     } )
 
     this.combinedLines = newCombinedLines
     this.linePositions = newLinePositions
+
+    console.log( 'combinedLines:', this.combinedLines )
+    console.log( 'linePositions:', this.linePositions )
   }
 
   ToggleRunningState(): void {
@@ -72,6 +105,8 @@ export class PanktiSelector {
     }
 
     this.isRunning = !( this.isRunning )
+
+    console.log( 'Setting state of running to ', this.isRunning )
 
     if ( this.isRunning ) {
       this.transcriber.StartRecording()
@@ -163,3 +198,12 @@ export class PanktiSelector {
     document.cookie = `${name}=${value};${expires};path=/`
   }
 }
+
+/*
+function setCookie( name, value, days ) {
+  const expirationDate = new Date()
+  expirationDate.setTime( expirationDate.getTime() + days * 24 * 60 * 60 * 1000 )
+  const expires = `expires=${expirationDate.toUTCString()}`
+  document.cookie = `${name}=${value};${expires};path=/`
+}
+*/
