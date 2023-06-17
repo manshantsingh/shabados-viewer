@@ -45,14 +45,14 @@ export class WebSpeechApiTranscriber extends Transcriber {
         // console.log( 'interim: ', event.results[ i ][ 0 ].transcript )
         interim_transcript += event.results[ i ][ 0 ].transcript
 
-        if ( event.results[ i ].isFinal ) {
-        //   prevTranscription = interim_transcript
-          console.log( 'final result: ', event.results[ i ][ 0 ].transcript )
-        //   toggleRecord()
-        //   return
-        }
+        // if ( event.results[ i ].isFinal ) {
+        // //   prevTranscription = interim_transcript
+        //   console.log( 'final result: ', event.results[ i ][ 0 ].transcript )
+        // //   toggleRecord()
+        // //   return
+        // }
       }
-      console.log( 'result received: ', interim_transcript )
+      //   console.log( 'result received: ', interim_transcript )
       callback( interim_transcript )
     }
   }

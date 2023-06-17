@@ -19,7 +19,7 @@ export class PanktiSelector {
 
   private lineCallback: PositionCallback
 
-  private transcriber: Transcriber
+  private transcriber: Transcriber | undefined
 
   private isRunning: boolean
 
@@ -46,20 +46,22 @@ export class PanktiSelector {
 
   constructor() {
     this.isRunning = false
+  }
 
+  CreateTranscriber(): void {
     const transcriberName = PanktiSelector.getCookie( PanktiSelector.transcriberNameCookieKey )
 
     switch ( transcriberName ) {
       case 'WebSpeechApi':
         this.transcriber = new WebSpeechApiTranscriber( this.GetPositionFromTranscriptionResult )
         break
-      // case 'MSFT':
-      //   this.transcriber = new MicrosoftCognitiveServicesSpeechTranscriber(
-      //     this.GetPositionFromTranscriptionResult,
-      //     PanktiSelector.getCookie( PanktiSelector.msftApiKeyCookieKey ),
-      //     PanktiSelector.getCookie( PanktiSelector.msftApiregionCookieKey )
-      //   )
-      //   break
+      case 'MSFT':
+        this.transcriber = new MicrosoftCognitiveServicesSpeechTranscriber(
+          this.GetPositionFromTranscriptionResult,
+          PanktiSelector.getCookie( PanktiSelector.msftApiKeyCookieKey ),
+          PanktiSelector.getCookie( PanktiSelector.msftApiregionCookieKey )
+        )
+        break
       default:
         console.log( `Not a valid Transcriber type name '${transcriberName}'. Skipping...` )
     }
@@ -101,6 +103,8 @@ export class PanktiSelector {
 
   ToggleRunningState(): void {
     if ( !( this.transcriber ) ) {
+      console.log( 'looks like first time setup: only initializing and not starting' )
+      this.CreateTranscriber()
       return
     }
 
@@ -191,7 +195,7 @@ export class PanktiSelector {
     return ''
   }
 
-  private static setCookie( name: string, value: string, days: number ): void {
+  private static setCookie( name: string, value: string, days = 1 ): void {
     const expirationDate = new Date()
     expirationDate.setTime( expirationDate.getTime() + days * 24 * 60 * 60 * 1000 )
     const expires = `expires=${expirationDate.toUTCString()}`

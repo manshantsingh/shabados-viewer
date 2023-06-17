@@ -142,8 +142,6 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     error: err,
   } = useSWR<SourcePageResponse, Error>( `${PAGE_API}/${source}/page/${rawPage}` )
 
-  console.log( 'lines: ', lines )
-
   const panktiSelectorRef = useRef<PanktiSelector | null>( null )
 
   const loading = !lines
@@ -239,7 +237,7 @@ const SourceView = ( { sources }: SourceViewProps ) => {
 
     panktiSelectorRef.current?.SetCallback( activateLine )
     panktiSelectorRef.current?.SetLines( lines.map( ( line ) => line.gurmukhi ) )
-  }, [ panktiSelectorRef.current, activateLine, lines ] )
+  }, [ panktiSelectorRef.current, lines ] )
 
   const handlers = {
     activatePreviousLine,
