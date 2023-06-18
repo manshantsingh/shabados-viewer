@@ -1,11 +1,16 @@
-import { result } from 'lodash'
-
 import { ResultCallback, Transcriber } from './Transcriber'
 
+// This uses the inbuilt browswer's WebSpeechApi, and hence could use a different service
+// under the hood depending on the browswer. Hence some perform better than others.
+//
+// Example:
+// - Chrome uses a version of Google cloud Speech-to-text
+// - Edge uses Microsoft Cognitive Service's Speech-to-text
+//
+// In my tests, Chrome gives faster results but stops after some time (under a minute) and
+// needs to restart it, while Edge on the other hand is slower will continue to work.
 export class WebSpeechApiTranscriber extends Transcriber {
   private recognition
-
-  private transcriptionSoFar = ''
 
   constructor( callback: ResultCallback ) {
     super( callback )
@@ -17,12 +22,10 @@ export class WebSpeechApiTranscriber extends Transcriber {
     this.recognition.lang = 'hi-IN'
 
     this.recognition.onstart = function () {
-      // recognizing = true
       console.log( 'starting recording' )
     }
 
     this.recognition.onerror = function ( event ) {
-      // handle errors
       console.log( 'onerror in recording: ', event )
     }
 
@@ -31,28 +34,10 @@ export class WebSpeechApiTranscriber extends Transcriber {
     }
 
     this.recognition.onresult = function ( event ) {
-    //   console.log( 'onresult:', result )
-
-      //   let interim_transcript = ''
-      //   for ( let i = event.resultIndex; i < event.results.length; ++i ) {
-      //     if ( !( event.results[ i ].isFinal ) ) {
-      //       interim_transcript += event.results[ i ][ 0 ].transcript
-      //     }
-      //   }
-
       let interim_transcript = ''
       for ( let i = event.resultIndex; i < event.results.length; ++i ) {
-        // console.log( 'interim: ', event.results[ i ][ 0 ].transcript )
         interim_transcript += event.results[ i ][ 0 ].transcript
-
-        // if ( event.results[ i ].isFinal ) {
-        // //   prevTranscription = interim_transcript
-        //   console.log( 'final result: ', event.results[ i ][ 0 ].transcript )
-        // //   toggleRecord()
-        // //   return
-        // }
       }
-      //   console.log( 'result received: ', interim_transcript )
       callback( interim_transcript )
     }
   }

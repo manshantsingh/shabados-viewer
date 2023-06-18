@@ -5,6 +5,10 @@ import { AudioConfig, ResultReason, SpeechConfig, SpeechRecognizer } from 'micro
 import { MSFT_AUTH_API } from '../consts'
 import { ResultCallback, Transcriber } from './Transcriber'
 
+// This calls the Cognitive Services API, and will need a user to generate their own
+// resource in Azure portal.
+// Note: You can just use WebSpeechApi in Edge and will see similar results for free,
+// and hence only use this if you want to use MSFT provider on non-edge browser
 export class MicrosoftCognitiveServicesSpeechTranscriber extends Transcriber {
   private speechRecognizer: SpeechRecognizer | undefined
 
