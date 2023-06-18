@@ -46,10 +46,12 @@ export class PanktiSelector {
 
   constructor() {
     this.isRunning = false
-  }
+    // }
 
-  CreateTranscriber(): void {
+    // CreateTranscriber(): void {
     const transcriberName = PanktiSelector.getCookie( PanktiSelector.transcriberNameCookieKey )
+
+    console.log( 'transcriberName:', transcriberName )
 
     switch ( transcriberName ) {
       case 'WebSpeechApi':
@@ -103,8 +105,9 @@ export class PanktiSelector {
 
   ToggleRunningState(): void {
     if ( !( this.transcriber ) ) {
-      console.log( 'looks like first time setup: only initializing and not starting' )
-      this.CreateTranscriber()
+      console.log( 'looks like Transcriber is not yet set.' )
+      // console.log( 'looks like first time setup: only initializing and not starting' )
+      // this.CreateTranscriber()
       return
     }
 
@@ -195,7 +198,7 @@ export class PanktiSelector {
     return ''
   }
 
-  private static setCookie( name: string, value: string, days = 1 ): void {
+  public static setCookie( name: string, value: string, days = 1 ): void {
     const expirationDate = new Date()
     expirationDate.setTime( expirationDate.getTime() + days * 24 * 60 * 60 * 1000 )
     const expires = `expires=${expirationDate.toUTCString()}`

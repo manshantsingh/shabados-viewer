@@ -114,6 +114,7 @@ const KEY_MAP = {
   previousPage: [ 'shift+left', 'pageup' ],
   nextPage: [ 'shift+right', 'pagedown' ],
   togglePanktiSelector: [ 'space' ],
+  cookiePrompt: [ 'shift+space' ],
 }
 
 const BLOCKED_KEYS = [ 'Tab', 'PageUp', 'PageDown' ]
@@ -230,6 +231,16 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     panktiSelectorRef.current?.ToggleRunningState()
   }
 
+  const cookiePrompt = () => {
+    const promptResponse = prompt( 'Enter Comma seperated key value to set as cookie:' )
+    if ( promptResponse && promptResponse.includes( ',' ) ) {
+      const arr = promptResponse.split( ',' )
+      PanktiSelector.setCookie( arr[ 0 ], arr[ 1 ] )
+    } else {
+      console.log( 'Invalid prompt value:', promptResponse )
+    }
+  }
+
   useEffect( () => {
     if ( !lines ) return
 
@@ -249,6 +260,7 @@ const SourceView = ( { sources }: SourceViewProps ) => {
     previousPage,
     nextPage,
     togglePanktiSelector,
+    cookiePrompt,
     openLine: onLineEnter,
   }
 
